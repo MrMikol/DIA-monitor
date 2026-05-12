@@ -2,6 +2,7 @@ use anyhow::Result;
 use rust_decimal::Decimal;
 use serde::Deserialize;
 use std::str::FromStr;
+use serde_json::json;
 
 const BASE_URL: &str = "https://explorer.diadata.org/api";
 
@@ -30,36 +31,49 @@ async fn main() -> Result<()> {
     ];
 
     let joined = addresses.join(",");
-
     let client = reqwest::Client::new();
-
     let res: ApiResponse = client.get(BASE_URL).query(&[("module", "account"),("action", "balancemulti"),("address", joined.as_str()),]).send().await?.error_for_status()?.json().await?;
+
+    let mut slack_text = String::from("DIA Balance\n\n");
+    let threshold = Decimal::from_str("1.0")?;
+    let slack_webhook_url =
+        "WEBHOOK";
+
 
     if res.status != "1" {
         anyhow::bail!("API error: {}", res.message);
     }
 
-    println!("DIA Balance\n");
+    //println!("DIA Balance\n");
 
     for item in res.result {
         let wei = Decimal::from_str(&item.balance)?;
         let dia = wei / Decimal::from(1_000_000_000_000_000_000u128);
 
-        let threshold = Decimal::from_str("1.0")?;
-
         let indicator = if dia > threshold {
-            "✅"
+            ":large_green_circle:"
         } else {
-            "🔴"
+            ":large_red_circle:"
         };
 
-        println!(
-            "{} Balance ({:.8} DIA) > 1.0 DIA [{}]",
+        slack_text.push_str(&format!(
+            "{} Balance ({:.8} DIA) > 1.0 DIA `[{}]`\n",
             indicator,
             dia,
             item.account
-        );
+        ));
     }
 
+    client
+        .post(slack_webhook_url)
+        .json(&json!({
+        "text": slack_text
+    }))
+        .send()
+        .await?
+        .error_for_status()?;
+
+    println!("Success");
+    
     Ok(())
 }
