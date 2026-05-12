@@ -3,6 +3,8 @@ use rust_decimal::Decimal;
 use serde::Deserialize;
 use std::str::FromStr;
 use serde_json::json;
+use dotenvy::dotenv;
+use dotenvy::from_path;
 
 const BASE_URL: &str = "https://explorer.diadata.org/api";
 
@@ -23,7 +25,7 @@ struct BalanceResult {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-
+    from_path("/etc/opt/app/slack/.env").ok();
     let addresses = [
         "0x186292Be4050F1FC6f51e624f6fc4532045829c2",
         "0xE801a0DE9DEaBde8bCEdeF412775a6A91F722150",
@@ -36,8 +38,7 @@ async fn main() -> Result<()> {
 
     let mut slack_text = String::from("DIA Balance\n\n");
     let threshold = Decimal::from_str("1.0")?;
-    let slack_webhook_url =
-        "WEBHOOK";
+    let slack_webhook_url = std::env::var("SLACK_WEBHOOK_URL")?;
 
 
     if res.status != "1" {
